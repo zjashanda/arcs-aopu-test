@@ -17,7 +17,7 @@ description: "奥普/ARCS 离线语音验证与压测技能。Use when Codex or 
 
 本 skill 已集成当前奥普项目可用的验证和压测逻辑：
 
-- 首唤醒窗口重启压测：重启设备、等待 `Application Ready!!!`、验证首次唤醒进入 `mode=1`、首次识别窗口内再次唤醒和命令识别、超时后恢复。
+- 首唤醒窗口重启压测：重启设备、等待 `Application Ready!!!`、使用 `assets\MP3` 音频验证首次唤醒进入 `mode=1`、首次识别窗口内再次唤醒和命令识别、超时后恢复。
 - 全词表功能覆盖：按 `assets\词表.txt` 播放 `assets\MP3` 中的全量音频，覆盖唤醒词、命令词和反集词，并输出 CSV/JSON。
 - 夜间语音压测：按模块化用例长时间循环播放，覆盖核心功能、失败项复测、反集误唤醒和安全收尾。
 - 协议门限切换验证：通过 `COM28@9600` 发送 1/2/3 档门限协议，并用 `COM26@921600` 复核唤醒和命令识别。
@@ -29,7 +29,6 @@ description: "奥普/ARCS 离线语音验证与压测技能。Use when Codex or 
 
 - `assets\MP3`：奥普全词表 MP3 测试资源，当前 308 个 `.mp3`，用于全词表、夜间压测、门限验证和组合压测。
 - `assets\词表.txt`：与 MP3 对应的去重词表，当前 308 条。
-- `wav`：首唤醒窗口重启压测使用的基础 WAV 资源：`你好小奥.wav`、`打开浴霸.wav`、`关闭浴霸.wav`。
 - `config\arcs_config.json`：首唤醒窗口重启压测和串口日志调试的默认配置。
 - `scripts`：所有可执行脚本。脚本默认优先使用本 skill 内置资源路径。
 - `run_aopu_combo_pressure.bat`：组合压测批处理入口，只需改顶部参数即可运行。
@@ -38,7 +37,7 @@ description: "奥普/ARCS 离线语音验证与压测技能。Use when Codex or 
 
 1. 安装 Python 3.10+，确认 `python` 可在 PowerShell/cmd 中执行。
 2. 安装依赖：`python -m pip install -r requirements.txt`。
-3. 首唤醒窗口重启压测如果使用 WAV 归一化，安装 `ffmpeg` 并加入 `PATH`；若 ffmpeg 不可用，脚本会尝试 WAV fallback。
+3. 首唤醒窗口重启压测默认使用 `assets\MP3` 中的 MP3 资源；脚本会通过 `ffmpeg` 归一化为临时 WAV 播放文件，因此需要安装 `ffmpeg` 并加入 `PATH`。
 4. Windows 默认声卡需要可外放；奥普当前压测默认音量为 20，可通过参数修改。
 5. 默认日志串口为 `COM26@921600`；默认协议串口为 `COM28@9600`。如设备枚举变化，优先通过参数或批处理顶部变量修改。
 

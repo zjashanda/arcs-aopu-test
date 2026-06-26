@@ -8,10 +8,10 @@
     "use_default_soundcard_only": true
   },
   "audio": {
-    "dir": "wav",
-    "wake_file": "你好小奥.wav",
-    "open_file": "打开浴霸.wav",
-    "close_file": "关闭浴霸.wav"
+    "dir": "assets/MP3",
+    "wake_file": "你好小奥.mp3",
+    "open_file": "打开浴霸.mp3",
+    "close_file": "关闭浴霸.mp3"
   },
   "pressure": {
     "max_wake_retries_on_command_miss": 6,

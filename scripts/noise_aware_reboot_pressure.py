@@ -8,7 +8,6 @@ Both logs flush every line so interrupted runs still leave usable evidence.
 from __future__ import annotations
 
 import argparse
-import audioop
 import base64
 import datetime as _dt
 import json
@@ -21,7 +20,6 @@ import subprocess
 import sys
 import threading
 import time
-import wave
 from pathlib import Path
 from typing import Dict, Optional, Tuple
 
@@ -38,9 +36,9 @@ SKILL_DIR = SCRIPT_DIR.parent
 PORT_DEFAULT = "COM28"
 BAUD_DEFAULT = 921600
 VOLUME_DEFAULT = 60
-WAKE_FILE_DEFAULT = "你好小奥.wav"
-OPEN_FILE_DEFAULT = "打开浴霸.wav"
-CLOSE_FILE_DEFAULT = "关闭浴霸.wav"
+WAKE_FILE_DEFAULT = "你好小奥.mp3"
+OPEN_FILE_DEFAULT = "打开浴霸.mp3"
+CLOSE_FILE_DEFAULT = "关闭浴霸.mp3"
 
 ANSI_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 MODE1_RE = re.compile(r"wakeup switch mode to:\s*1|wakeup_algo_switch_mode_cb:\s*mode=1|\bMODE=1\b", re.I)
@@ -183,7 +181,7 @@ def apply_config(args: argparse.Namespace) -> argparse.Namespace:
     config = load_config(args.config)
     args.port = args.port or cfg_get(config, "serial.port", PORT_DEFAULT)
     args.baud = args.baud or int(cfg_get(config, "serial.baud", BAUD_DEFAULT))
-    args.audio_dir = args.audio_dir or cfg_get(config, "audio.dir", "wav")
+    args.audio_dir = args.audio_dir or cfg_get(config, "audio.dir", str(SKILL_DIR / "assets" / "MP3"))
     args.wake_file = args.wake_file or cfg_get(config, "audio.wake_file", WAKE_FILE_DEFAULT)
     args.open_file = args.open_file or cfg_get(config, "audio.open_file", OPEN_FILE_DEFAULT)
     args.close_file = args.close_file or cfg_get(config, "audio.close_file", CLOSE_FILE_DEFAULT)
@@ -357,41 +355,11 @@ Add-Type -TypeDefinition $code -Language CSharp
         raise RuntimeError(details)
 
 
-def normalize_audio_with_wave(source: Path, target: Path) -> None:
-    """Fallback PCM WAV converter used when ffmpeg is not installed."""
-    with wave.open(str(source), "rb") as src:
-        channels = src.getnchannels()
-        sample_width = src.getsampwidth()
-        sample_rate = src.getframerate()
-        compression = src.getcomptype()
-        frames = src.readframes(src.getnframes())
-    if compression != "NONE":
-        raise RuntimeError(f"unsupported compressed wav: {source}")
-    if channels not in (1, 2):
-        raise RuntimeError(f"unsupported channel count for wav fallback: {channels}")
-    if sample_width not in (1, 2, 3, 4):
-        raise RuntimeError(f"unsupported sample width for wav fallback: {sample_width}")
-
-    if sample_width != 2:
-        frames = audioop.lin2lin(frames, sample_width, 2)
-        sample_width = 2
-    converted, _state = audioop.ratecv(frames, sample_width, channels, sample_rate, 44100, None)
-    if channels == 1:
-        converted = audioop.tostereo(converted, sample_width, 1.0, 1.0)
-
-    with wave.open(str(target), "wb") as dst:
-        dst.setnchannels(2)
-        dst.setsampwidth(2)
-        dst.setframerate(44100)
-        dst.writeframes(converted)
-
-
 def normalize_audio(source: Path, target: Path) -> None:
     target.parent.mkdir(parents=True, exist_ok=True)
     ffmpeg = shutil.which("ffmpeg")
     if not ffmpeg:
-        normalize_audio_with_wave(source, target)
-        return
+        raise RuntimeError("ffmpeg is required to normalize bundled MP3 test audio")
     result = run_command([
         ffmpeg,
         "-y",
@@ -469,6 +437,8 @@ class Runner:
 
     def audio_paths(self) -> Dict[str, Path]:
         audio_dir = Path(self.args.audio_dir)
+        if not audio_dir.is_absolute():
+            audio_dir = SKILL_DIR / audio_dir
         return {
             "wake": audio_dir / self.args.wake_file,
             "open": audio_dir / self.args.open_file,
