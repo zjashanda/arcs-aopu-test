@@ -8,6 +8,7 @@ Both logs flush every line so interrupted runs still leave usable evidence.
 from __future__ import annotations
 
 import argparse
+import audioop
 import base64
 import datetime as _dt
 import json
@@ -20,6 +21,7 @@ import subprocess
 import sys
 import threading
 import time
+import wave
 from pathlib import Path
 from typing import Dict, Optional, Tuple
 
@@ -29,6 +31,9 @@ try:
     import pygame
 except ImportError as exc:  # pragma: no cover - runtime dependency
     raise SystemExit("ERROR: pygame is required for default soundcard playback") from exc
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+SKILL_DIR = SCRIPT_DIR.parent
 
 PORT_DEFAULT = "COM28"
 BAUD_DEFAULT = 921600
@@ -40,10 +45,10 @@ CLOSE_FILE_DEFAULT = "关闭浴霸.wav"
 ANSI_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 MODE1_RE = re.compile(r"wakeup switch mode to:\s*1|wakeup_algo_switch_mode_cb:\s*mode=1|\bMODE=1\b", re.I)
 TIMEOUT_RE = re.compile(r"wakeup timeout|wakeup_algo_timeout_cb|wakeup switch mode to:\s*0|wakeup_algo_switch_mode_cb:\s*mode=0|\bMODE=0\b", re.I)
-WAKE_RE = re.compile(r"WAKE\(1\).*ni3 hao3 xiao3 ao4|keyword\":\"ni3 hao3 xiao3 ao4", re.I)
+WAKE_RE = re.compile(r"WAKE\(1\)|\[wrap\]wakeup:.*keyword", re.I)
 OPEN_RE = re.compile(r"Recognized offline command:\s*kai yu ba|Offline command submitted:\s*kai yu ba", re.I)
 CLOSE_RE = re.compile(r"Recognized offline command:\s*guan yu ba|Offline command submitted:\s*guan yu ba", re.I)
-BOOT_RE = re.compile(r"wakeup_algo|ListenAI:/\$", re.I)
+BOOT_RE = re.compile(r"Application Ready!!!", re.I)
 
 
 def now() -> str:
@@ -188,6 +193,21 @@ def apply_config(args: argparse.Namespace) -> argparse.Namespace:
         args.max_wake_retries
         if args.max_wake_retries is not None
         else int(cfg_get(config, "pressure.max_wake_retries_on_command_miss", 6))
+    )
+    args.initial_wake_max_attempts = (
+        args.initial_wake_max_attempts
+        if args.initial_wake_max_attempts is not None
+        else int(cfg_get(config, "pressure.initial_wake_max_attempts", 20))
+    )
+    args.initial_wake_timeout = (
+        args.initial_wake_timeout
+        if args.initial_wake_timeout is not None
+        else float(cfg_get(config, "pressure.initial_wake_timeout_seconds", 8.0))
+    )
+    args.post_app_ready_grace = (
+        args.post_app_ready_grace
+        if args.post_app_ready_grace is not None
+        else float(cfg_get(config, "pressure.post_app_ready_grace_seconds", 3.0))
     )
     args.retry_until_timeout = (
         args.retry_until_timeout
@@ -337,9 +357,41 @@ Add-Type -TypeDefinition $code -Language CSharp
         raise RuntimeError(details)
 
 
+def normalize_audio_with_wave(source: Path, target: Path) -> None:
+    """Fallback PCM WAV converter used when ffmpeg is not installed."""
+    with wave.open(str(source), "rb") as src:
+        channels = src.getnchannels()
+        sample_width = src.getsampwidth()
+        sample_rate = src.getframerate()
+        compression = src.getcomptype()
+        frames = src.readframes(src.getnframes())
+    if compression != "NONE":
+        raise RuntimeError(f"unsupported compressed wav: {source}")
+    if channels not in (1, 2):
+        raise RuntimeError(f"unsupported channel count for wav fallback: {channels}")
+    if sample_width not in (1, 2, 3, 4):
+        raise RuntimeError(f"unsupported sample width for wav fallback: {sample_width}")
+
+    if sample_width != 2:
+        frames = audioop.lin2lin(frames, sample_width, 2)
+        sample_width = 2
+    converted, _state = audioop.ratecv(frames, sample_width, channels, sample_rate, 44100, None)
+    if channels == 1:
+        converted = audioop.tostereo(converted, sample_width, 1.0, 1.0)
+
+    with wave.open(str(target), "wb") as dst:
+        dst.setnchannels(2)
+        dst.setsampwidth(2)
+        dst.setframerate(44100)
+        dst.writeframes(converted)
+
+
 def normalize_audio(source: Path, target: Path) -> None:
-    ffmpeg = require_tool("ffmpeg")
     target.parent.mkdir(parents=True, exist_ok=True)
+    ffmpeg = shutil.which("ffmpeg")
+    if not ffmpeg:
+        normalize_audio_with_wave(source, target)
+        return
     result = run_command([
         ffmpeg,
         "-y",
@@ -404,6 +456,9 @@ class Runner:
                 "tool_log_policy": "tool execution events in a separate realtime log; every line has millisecond timestamp",
                 "noise_policy": "first-window unified wake/open/close probe; target fail requires no wake and no command until timeout, then recovery check",
                 "retry_until_timeout": args.retry_until_timeout,
+                "initial_wake_max_attempts": args.initial_wake_max_attempts,
+                "initial_wake_timeout_seconds": args.initial_wake_timeout,
+                "post_app_ready_grace_seconds": args.post_app_ready_grace,
                 "max_wake_retries_on_command_miss": args.max_wake_retries,
                 "wake_retry_gap_seconds": args.wake_retry_gap,
                 "timeout_wait_seconds": args.timeout_wait,
@@ -532,6 +587,17 @@ class Runner:
     def count_since(self, start: int, regex: re.Pattern) -> int:
         self.drain()
         return sum(1 for line in self.records[start:] if regex.search(line))
+
+    def count_between(self, start: int, end: int, regex: re.Pattern) -> int:
+        self.drain()
+        return sum(1 for line in self.records[start:end] if regex.search(line))
+
+    def find_between(self, start: int, end: int, regex: re.Pattern) -> Tuple[bool, Optional[int]]:
+        self.drain()
+        for idx, line in enumerate(self.records[start:end], start):
+            if regex.search(line):
+                return True, idx
+        return False, None
 
     def play(self, label: str, sound_key: str) -> int:
         self.drain()
@@ -876,37 +942,118 @@ class Runner:
     def save_summary(self) -> None:
         self.summary_path.write_text(json.dumps(self.summary, ensure_ascii=False, indent=2), encoding="utf-8")
 
+    def initial_wake_until_mode1(self, cycle: int, pre_attempt_start: Optional[int] = None) -> Dict[str, object]:
+        """Retry the initial wake until mode=1 is observed or attempts are exhausted."""
+        self.drain()
+        current_index = len(self.records)
+        analysis_start = pre_attempt_start if pre_attempt_start is not None else current_index
+        pre_attempt_end = current_index
+        pre_wake_count = self.count_between(analysis_start, pre_attempt_end, WAKE_RE)
+        pre_mode_ok, pre_mode_idx = self.find_between(analysis_start, pre_attempt_end, MODE1_RE)
+        result: Dict[str, object] = {
+            "mode1": False,
+            "max_attempts": self.args.initial_wake_max_attempts,
+            "attempts": 0,
+            "mode1_attempt": None,
+            "wake_marker_count": pre_wake_count,
+            "analysis_start_index": analysis_start,
+            "analysis_end_index": pre_attempt_end,
+            "pre_attempt_start_index": analysis_start,
+            "pre_attempt_end_index": pre_attempt_end,
+            "pre_attempt_wake_marker_count": pre_wake_count,
+            "pre_attempt_mode1": pre_mode_ok,
+            "pre_attempt_mode1_analysis_index": pre_mode_idx,
+            "attempts_detail": [],
+        }
+
+        if pre_mode_ok and pre_wake_count > 0:
+            result["mode1"] = True
+            result["mode1_attempt"] = 0
+            result["success_reason"] = "pre_attempt_wake_mode1"
+            self.mark(
+                f"CYCLE_{cycle}_INITIAL_WAKE_PRE_ATTEMPT_SUCCESS",
+                json.dumps(result, ensure_ascii=False),
+            )
+            self.mark(f"CYCLE_{cycle}_INITIAL_WAKE_ANALYSIS", json.dumps(result, ensure_ascii=False))
+            return result
+
+        self.mark(
+            f"CYCLE_{cycle}_INITIAL_WAKE_RETRY_BEGIN",
+            f"max_attempts={self.args.initial_wake_max_attempts} "
+            f"per_attempt_timeout_s={self.args.initial_wake_timeout} "
+            f"pre_attempt_wake_marker_count={pre_wake_count} "
+            f"pre_attempt_mode1={pre_mode_ok}",
+        )
+
+        for attempt in range(1, self.args.initial_wake_max_attempts + 1):
+            wake_start = self.play(f"CYCLE_{cycle}_INITIAL_WAKE_ATTEMPT_{attempt}", "wake")
+            mode_ok, mode_idx = self.wait_for(
+                f"CYCLE_{cycle}_MODE1_AFTER_INITIAL_WAKE_ATTEMPT_{attempt}",
+                MODE1_RE,
+                self.args.initial_wake_timeout,
+                start=wake_start,
+            )
+            wake_count = self.count_since(wake_start, WAKE_RE)
+            detail: Dict[str, object] = {
+                "attempt": attempt,
+                "mode1": mode_ok,
+                "mode1_analysis_index": mode_idx,
+                "wake_marker_count": wake_count,
+                "analysis_start_index": wake_start,
+                "analysis_end_index": len(self.records),
+            }
+            result["attempts"] = attempt
+            result["wake_marker_count"] = int(result["wake_marker_count"]) + wake_count
+            result["analysis_end_index"] = len(self.records)
+            result["attempts_detail"].append(detail)
+            self.mark(
+                f"CYCLE_{cycle}_INITIAL_WAKE_ATTEMPT_{attempt}_ANALYSIS",
+                json.dumps(detail, ensure_ascii=False),
+            )
+            if mode_ok:
+                result["mode1"] = True
+                result["mode1_attempt"] = attempt
+                break
+            if attempt < self.args.initial_wake_max_attempts:
+                self.mark(
+                    f"CYCLE_{cycle}_INITIAL_WAKE_ATTEMPT_{attempt}_RETRY",
+                    "mode1 not seen, retrying initial wake",
+                )
+                self.wait(self.args.wake_retry_gap)
+
+        self.mark(f"CYCLE_{cycle}_INITIAL_WAKE_ANALYSIS", json.dumps(result, ensure_ascii=False))
+        return result
+
     def run_cycle(self, ser: serial.Serial, cycle: int) -> Dict[str, object]:
         cyc: Dict[str, object] = {"cycle": cycle, "status": "unknown", "noise_probe": None}
+        reboot_start = len(self.records)
         self.mark(f"CYCLE_{cycle}_REBOOT_SEND", "reboot")
         ser.write(b"reboot\r\n")
         ser.flush()
         self.wait(5)
-        boot_start = len(self.records)
-        boot_ok, _ = self.wait_for(f"CYCLE_{cycle}_BOOT_READY", BOOT_RE, 35, start=boot_start)
+        boot_ok, boot_idx = self.wait_for(f"CYCLE_{cycle}_BOOT_READY", BOOT_RE, 35, start=reboot_start)
         cyc["boot_ready"] = boot_ok
+        cyc["boot_ready_analysis_index"] = boot_idx
         if not boot_ok:
             cyc["status"] = "blocked_boot_not_ready"
             return cyc
-        self.wait(2)
-        wake_start = self.play(f"CYCLE_{cycle}_INITIAL_WAKE", "wake")
-        mode_ok, _ = self.wait_for(f"CYCLE_{cycle}_MODE1_AFTER_INITIAL_WAKE", MODE1_RE, 8, start=wake_start)
+        self.wait(self.args.post_app_ready_grace)
+        initial_wake = self.initial_wake_until_mode1(cycle, boot_idx)
+        mode_ok = bool(initial_wake["mode1"])
         cyc["initial_wake_mode1"] = mode_ok
-        cyc["initial_wake_marker_count"] = self.count_since(wake_start, WAKE_RE)
-        self.mark(
-            f"CYCLE_{cycle}_INITIAL_WAKE_ANALYSIS",
-            json.dumps(
-                {
-                    "mode1": mode_ok,
-                    "wake_marker_count": cyc["initial_wake_marker_count"],
-                    "analysis_start_index": wake_start,
-                    "analysis_end_index": len(self.records),
-                },
-                ensure_ascii=False,
-            ),
-        )
+        cyc["initial_wake_attempts"] = int(initial_wake["attempts"])
+        cyc["initial_wake_max_attempts"] = int(initial_wake["max_attempts"])
+        cyc["initial_wake_mode1_attempt"] = initial_wake["mode1_attempt"]
+        cyc["initial_wake_marker_count"] = int(initial_wake["wake_marker_count"])
+        cyc["initial_wake_success_reason"] = initial_wake.get("success_reason")
+        cyc["initial_wake_pre_attempt_wake_marker_count"] = int(initial_wake.get("pre_attempt_wake_marker_count", 0))
+        cyc["initial_wake_pre_attempt_mode1"] = bool(initial_wake.get("pre_attempt_mode1", False))
+        cyc["initial_wake_pre_attempt_mode1_analysis_index"] = initial_wake.get("pre_attempt_mode1_analysis_index")
+        cyc["initial_wake_attempts_detail"] = initial_wake["attempts_detail"]
         if not mode_ok:
             cyc["status"] = "fail_initial_wake_no_mode1"
+            cyc["initial_wake_failure_reason"] = "mode1_not_seen_after_max_attempts"
+            self.mark(f"CYCLE_{cycle}_FAIL", json.dumps(cyc, ensure_ascii=False))
             return cyc
         window_start = len(self.records)
         self.mark(
@@ -959,6 +1106,9 @@ class Runner:
                     f"cycles={self.args.cycles} volume={self.args.volume} "
                     f"end_at={self.args.end_at_dt.isoformat(timespec='seconds') if self.args.end_at_dt else None} "
                     f"retry_until_timeout={self.args.retry_until_timeout} timeout_wait={self.args.timeout_wait} "
+                    f"initial_wake_max_attempts={self.args.initial_wake_max_attempts} "
+                    f"initial_wake_timeout={self.args.initial_wake_timeout} "
+                    f"post_app_ready_grace={self.args.post_app_ready_grace} "
                     f"wake_retry_gap={self.args.wake_retry_gap} "
                     "default_local_soundcard_only xshell_serial_log_and_tool_log"
                 )
@@ -978,6 +1128,9 @@ class Runner:
                         "end_at": self.args.end_at_dt.isoformat(timespec="seconds") if self.args.end_at_dt else None,
                         "volume": None if self.args.skip_volume else self.args.volume,
                         "retry_until_timeout": self.args.retry_until_timeout,
+                        "initial_wake_max_attempts": self.args.initial_wake_max_attempts,
+                        "initial_wake_timeout_seconds": self.args.initial_wake_timeout,
+                        "post_app_ready_grace_seconds": self.args.post_app_ready_grace,
                         "wake_retry_gap_seconds": self.args.wake_retry_gap,
                         "timeout_wait_seconds": self.args.timeout_wait,
                         "max_wake_retries_on_command_miss": self.args.max_wake_retries,
@@ -1035,7 +1188,7 @@ class Runner:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run noise-aware reboot first-window voice pressure test.")
-    parser.add_argument("--config", default="config/arcs_config.json")
+    parser.add_argument("--config", default=str(SKILL_DIR / "config" / "arcs_config.json"))
     parser.add_argument("--cycles", type=int, default=20)
     parser.add_argument("--end-at", help="Local end time, for example 2026-06-09T08:30:00. Stops before starting the next cycle after this time.")
     parser.add_argument("--port", help="Temporary override for config serial.port")
@@ -1048,6 +1201,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--volume", type=int)
     parser.add_argument("--skip-volume", action="store_true", help="Do not adjust Windows default render volume.")
     parser.add_argument("--max-wake-retries", type=int)
+    parser.add_argument("--initial-wake-max-attempts", type=int)
+    parser.add_argument("--initial-wake-timeout", type=float)
+    parser.add_argument("--post-app-ready-grace", type=float, help="Seconds to watch for wake+mode=1 after Application Ready before scripted first wake.")
     parser.add_argument("--retry-until-timeout", dest="retry_until_timeout", action="store_true", help="Probe wake word until first-window timeout on miss.")
     parser.add_argument("--fixed-wake-retries", dest="retry_until_timeout", action="store_false", help="Use max_wake_retries instead of probing until timeout.")
     parser.add_argument("--wake-retry-gap", type=float)
@@ -1064,6 +1220,12 @@ def main() -> int:
         raise RuntimeError("--cycles must be >= 1")
     if args.max_wake_retries < 1:
         raise RuntimeError("--max-wake-retries must be >= 1")
+    if args.initial_wake_max_attempts < 1:
+        raise RuntimeError("--initial-wake-max-attempts must be >= 1")
+    if args.initial_wake_timeout <= 0:
+        raise RuntimeError("--initial-wake-timeout must be > 0")
+    if args.post_app_ready_grace < 0:
+        raise RuntimeError("--post-app-ready-grace must be >= 0")
     Runner(args).run()
     return 0
 

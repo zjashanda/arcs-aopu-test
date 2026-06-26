@@ -1,0 +1,7 @@
+interface:
+  display_name: "ARCS 奥普语音测试"
+  short_description: "奥普离线语音、重启唤醒、三档门限和长稳压测技能"
+  default_prompt: "Use $arcs-aopu-test to run Aopu offline voice validation and pressure tests with bundled MP3 resources."
+
+policy:
+  allow_implicit_invocation: true

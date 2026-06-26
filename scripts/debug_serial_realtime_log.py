@@ -14,6 +14,8 @@ from pathlib import Path
 import serial
 
 ANSI_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
+SCRIPT_DIR = Path(__file__).resolve().parent
+SKILL_DIR = SCRIPT_DIR.parent
 
 
 def now_dt() -> _dt.datetime:
@@ -118,7 +120,7 @@ def port_label(port: str) -> str:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Debug Xshell-format serial log plus separated tool log.")
-    parser.add_argument("--config", default="config/arcs_config.json")
+    parser.add_argument("--config", default=str(SKILL_DIR / "config" / "arcs_config.json"))
     parser.add_argument("--port")
     parser.add_argument("--baud", type=int)
     parser.add_argument("--lines", type=int, default=10)

@@ -1,9 +1,9 @@
 ---
-name: arcs-firstwakeasr
-description: 离线语音首唤醒窗口压测技能。Use when Codex or a tester needs to configure one local serial port, read device logs, play 本机默认声卡 wav 音频（你好小奥、打开浴霸、关闭浴霸）, 验证 reboot 后首次唤醒进入 mode=1 后的首次识别窗口内再次唤醒、命令识别、wakeup timeout、超时后恢复，并分离实时保存 Xshell 风格串口日志和工具执行日志。
+name: arcs-aopu-test
+description: "奥普/ARCS 离线语音验证与压测技能。Use when Codex or a tester needs to run local serial-log based wakeup/ASR validation, reboot first-wakeup stress tests, full-vocabulary MP3 coverage, overnight pressure tests, threshold protocol switching, threshold-timeout algorithm checks, or mixed voice/reboot/threshold pressure tests with bundled test audio resources."
 ---
 
-# ARCS 离线语音首唤醒窗口压测
+# ARCS 奥普离线语音验证与压测
 
 ## 启动规则
 
@@ -11,104 +11,197 @@ description: 离线语音首唤醒窗口压测技能。Use when Codex or a teste
 2. 先把本轮要做什么、已做什么、未做什么写入 `plan.md`。
 3. 执行过程中出现关键结果、阻塞、失败、未复现结论，都要及时追加到 `plan.md`。
 4. 不要删除已有有效信息；只追加或整理明确过时/乱码内容。
-5. 本技能目录就是当前目录，不要把技能复制到 Codex 技能目录。
+5. 本技能目录就是当前目录，优先在本目录内运行脚本，不要把技能复制到其他目录后再改路径。
 
-## 下载后运行准备
+## 能力范围
 
-1. 安装 Python 3.10+，并确认 `python` 可在 PowerShell 中执行。
-2. 安装 Python 依赖：`python -m pip install -r requirements.txt`。
-3. 安装 `ffmpeg` 并加入 `PATH`，脚本会用它把 16k/mono wav 预转换为 44.1k/stereo 播放文件。
-4. 只修改 `config/arcs_config.json` 中的 `serial.port` 和 `serial.baud` 即可切换串口；默认示例为 `COM28@921600`。
-5. 保持 `playback.use_default_soundcard_only=true`，脚本只用本机默认声卡，不指定其他声卡。
-6. 执行前确认默认声卡音量可外放；脚本默认把系统音量设置为配置里的 `playback.volume=60`。
+本 skill 已集成当前奥普项目可用的验证和压测逻辑：
 
-快速验证命令：
+- 首唤醒窗口重启压测：重启设备、等待 `Application Ready!!!`、验证首次唤醒进入 `mode=1`、首次识别窗口内再次唤醒和命令识别、超时后恢复。
+- 全词表功能覆盖：按 `assets\词表.txt` 播放 `assets\MP3` 中的全量音频，覆盖唤醒词、命令词和反集词，并输出 CSV/JSON。
+- 夜间语音压测：按模块化用例长时间循环播放，覆盖核心功能、失败项复测、反集误唤醒和安全收尾。
+- 协议门限切换验证：通过 `COM28@9600` 发送 1/2/3 档门限协议，并用 `COM26@921600` 复核唤醒和命令识别。
+- 三档门限超时重唤醒算法验证：每档设置后等待超时，再重新唤醒、命令识别，并提取算法门限字段。
+- 组合压测：支持语音交互、重启唤醒、三档门限的单项、两两组合、三项组合和 mixed 随机混合长稳压测。
+- 结果汇总：支持夜间压测报告、运行快照、串口日志和 CSV/JSON 证据输出。
 
-```powershell
-python .\scripts\debug_serial_realtime_log.py --lines 10
-python .\scripts\noise_aware_reboot_pressure.py --cycles 5
-```
+## 资源结构
 
-## 固定环境
+- `assets\MP3`：奥普全词表 MP3 测试资源，当前 308 个 `.mp3`，用于全词表、夜间压测、门限验证和组合压测。
+- `assets\词表.txt`：与 MP3 对应的去重词表，当前 308 条。
+- `wav`：首唤醒窗口重启压测使用的基础 WAV 资源：`你好小奥.wav`、`打开浴霸.wav`、`关闭浴霸.wav`。
+- `config\arcs_config.json`：首唤醒窗口重启压测和串口日志调试的默认配置。
+- `scripts`：所有可执行脚本。脚本默认优先使用本 skill 内置资源路径。
+- `run_aopu_combo_pressure.bat`：组合压测批处理入口，只需改顶部参数即可运行。
 
-- 配置文件：`config\arcs_config.json`。
-- 串口：默认从配置文件读取 `serial.port` 与 `serial.baud`，当前为 `COM28@921600`。
-- 后续修改串口号或波特率时，只改 `config\arcs_config.json`，不要直接改脚本。
-- 播放：只使用本机 Windows 默认声卡，不指定其他声卡、不使用 device key。
-- 音量：默认从配置文件读取 `playback.volume`，当前为 60，确认未静音。
-- 唤醒词：默认从配置文件读取 `audio.wake_file`，当前为 `wav\你好小奥.wav`。
-- 命令词：默认从配置文件读取 `audio.open_file`、`audio.close_file`，当前为 `wav\打开浴霸.wav`、`wav\关闭浴霸.wav`。
-- 结果目录：默认从配置文件读取 `logging.out_dir`，每次任务创建 `result\YYYYMMDD_HHMMSS`。
-- 压测重试：默认从配置文件读取 `pressure.retry_until_timeout=true`；命令词 miss 或首次窗口再次唤醒 miss 后，持续播报唤醒词直到看到 `mode=0`/`wakeup timeout`，`pressure.timeout_wait_seconds` 只作为防死锁保护。
+## 环境准备
 
-## 日志硬约束
+1. 安装 Python 3.10+，确认 `python` 可在 PowerShell/cmd 中执行。
+2. 安装依赖：`python -m pip install -r requirements.txt`。
+3. 首唤醒窗口重启压测如果使用 WAV 归一化，安装 `ffmpeg` 并加入 `PATH`；若 ffmpeg 不可用，脚本会尝试 WAV fallback。
+4. Windows 默认声卡需要可外放；奥普当前压测默认音量为 20，可通过参数修改。
+5. 默认日志串口为 `COM26@921600`；默认协议串口为 `COM28@9600`。如设备枚举变化，优先通过参数或批处理顶部变量修改。
 
-- 一次任务必须至少输出两个实时日志文件：Xshell 风格串口日志 `COM028_921600_yyyy-MM-dd_HH_mm_ss.log` 和工具执行日志 `*.tool.log`。
-- 串口日志必须按用户提供的 Xshell 样例保存：UTF-8 BOM、CRLF 换行、`[BEGIN] yyyy/M/d HH:mm:ss`、`[yyyy/M/d HH:mm:ss.mmm] Connecting to COM28...`、`Connected.`、每条串口输出前缀 `[yyyy/M/d HH:mm:ss.mmm] `、结束 `Connection closed.` 和 `[END] yyyy/M/d HH:mm:ss`。
-- 串口日志保存终端处理后的可读文本：去掉 ANSI ESC 颜色/清屏控制符，按串口原始换行拆成一条串口输出一行，便于人工阅读；不要混入工具事件、播放事件、统计事件。
-- 串口日志必须覆盖任务开始到结束期间的串口输出；不要只保存关键行或匹配行。
-- 工具执行日志只保存工具动作、播放、等待匹配、统计、异常、分析结论等执行信息；不要混入串口原始数据。
-- 工具执行日志必须足够复盘：记录配置读取、音量设置、音频归一化、串口打开、reboot、播放开始/结束、等待匹配、计数统计、噪音探测、每轮结论和最终汇总。
-- 两类日志每一行都必须以毫秒级时间戳开头，格式如 `[2026-06-08T19:17:18.064]`。
-- 两类日志都必须实时追加保存：每条记录写入后立即 `flush`，默认还要 `fsync`。
-- 串口记录内部的 `\r` 要转义成可见文本 `\\r`，保证一条串口记录对应一个物理日志行。
-- 如果任务被中断，已经采集到的串口日志和工具日志都必须能恢复证据。
-- 需要调试日志保存时运行：
-
-```powershell
-python .\scripts\debug_serial_realtime_log.py --lines 10
-```
-
-验收口径：任务目录有两个文件，`COM028_921600_yyyy-MM-dd_HH_mm_ss.log` 为 Xshell 风格串口日志，`serial_realtime_save_10lines.tool.log` 记录工具开始、串口读取统计、结束汇总；串口日志格式必须与 `D:\Xshell_Log\COM028_921600_2026-06-08_18_20_17.log` 对齐。
-
-## 核心日志标记
+## 固定日志和识别标记
 
 - 空闲：`I/wakeup_algo counter_avg=...`、`ListenAI:/$`。
+- 应用就绪：`Application Ready!!!`。
 - 进入识别模式：`wakeup switch mode to: 1`、`MODE=1`、`wakeup_algo_switch_mode_cb: mode=1`。
-- 唤醒词成功：`WAKE(1): ... KEY=2(ni3 hao3 xiao3 ao4)` 或 JSON 中 `keyword":"ni3 hao3 xiao3 ao4`。
+- 唤醒成功：`WAKE(1): ... KEY=2(ni3 hao3 xiao3 ao4)` 或 JSON 中 `keyword":"ni3 hao3 xiao3 ao4`。
 - 打开浴霸成功：`Recognized offline command: kai yu ba` 或 `Offline command submitted: kai yu ba`。
 - 关闭浴霸成功：`Recognized offline command: guan yu ba` 或 `Offline command submitted: guan yu ba`。
 - 超时退出：`wakeup switch mode to: 0`、`wakeup timeout`、`wakeup_algo_timeout_cb`、`MODE=0`。
 
-## 首次窗口目标异常判定逻辑
+日志要求：
 
-1. 单次命令词不识别不能直接判定设备异常，因为当前环境可能有噪音干扰。
-2. 每轮必须从串口发送 `reboot` 开始，等待设备恢复 `ListenAI:/$` 或 `wakeup_algo` 日志。
-3. 播放 `你好小奥`，必须看到进入识别模式标记 `mode=1`；否则判定 `fail_initial_wake_no_mode1`。
-4. 进入首次识别窗口后，使用统一探针循环播放 `你好小奥`、`打开浴霸`、`关闭浴霸`，同时验证“再次唤醒”和“两条命令识别”。
-5. 首轮探针中再次唤醒和两条命令都成功时，记为 `pass_first_window_wake_again_and_commands_recognized`。
-6. 如果首轮未完整通过，但首次窗口内任一唤醒或命令有识别，说明不是目标异常；按噪音/播放疑似记为 `SUSPECT_NOISE` 类结果。
-7. 只有首次窗口内持续到 `mode=0`/`wakeup timeout` 前 `wake_detected_count=0` 且 `command_recognized_count=0`，才是目标失败候选。
-8. 目标失败候选在超时后重新唤醒并且 `打开浴霸`、`关闭浴霸` 均恢复识别时，标记为 `fail_first_window_no_wake_no_command_until_timeout_recovered`。
-9. 目标失败候选在超时后仍无法重新唤醒或命令仍不识别，标记为恢复失败类问题。
-10. 如果未看到超时且达到 `pressure.timeout_wait_seconds` 防死锁上限，标记为 `BLOCKED` 或 `SUSPECT`，不要伪造 FAIL。
-11. 报告时必须区分 `PASS`、`SUSPECT_NOISE`、`FAIL`、`BLOCKED`，并列出探针轮数、唤醒命中数、命令命中数、是否超时和恢复结果。
+- 串口日志必须实时保存，不能只保存匹配到的关键行。
+- 工具执行日志、CSV、JSON、报告都要保留在结果目录，便于复盘。
+- 如果任务被中断，已经采集到的串口日志和工具日志必须仍可作为证据。
+- 结论必须区分 `PASS`、`WARN`、`SUSPECT`、`FAIL`、`BLOCKED`，不要把脚本未进入有效流程直接当作产品失败。
 
-## 推荐命令
+## 快速检查
 
-执行 20 轮噪音感知压测：
-
-```powershell
-python .\scripts\noise_aware_reboot_pressure.py --cycles 20
-```
-
-执行到指定本地时间的长压测：
-
-```powershell
-python .\scripts\noise_aware_reboot_pressure.py --cycles 999999 --end-at 2026-06-09T08:30:00 --no-final-timeout
-```
-
-执行 10 条日志保存调试：
+在 skill 根目录执行：
 
 ```powershell
 python .\scripts\debug_serial_realtime_log.py --lines 10
+python .\scripts\vocab_function_coverage.py --max-cases 3 --port COM26 --baud 921600
+cmd /c "set AOPU_DRY_RUN=1&& call run_aopu_combo_pressure.bat <nul"
 ```
 
-## 交付要求
+## 首唤醒窗口重启压测
 
-- 汇总本次结果目录、串口日志、工具执行日志、摘要 JSON、clean log。
-- 必须分别列出 Xshell 风格串口日志和工具执行日志。
-- 明确统计总轮数、进入识别模式成功数、打开识别成功数、关闭识别成功数、噪音探测触发次数、失败次数。
-- 如未复现异常，写明“本轮未复现”，并说明仍可通过更多轮数或随机间隔提高置信度。
-- 如出现命令 miss，必须展示噪音探测过程：miss 的命令、唤醒词重试次数、是否看到唤醒标记、是否超时退出、超时后恢复是否正常。
+用途：验证 reboot 后首次唤醒窗口内是否能再次唤醒和识别 `打开浴霸`、`关闭浴霸`，并复核超时后恢复。
+
+推荐命令：
+
+```powershell
+python .\scripts\noise_aware_reboot_pressure.py --cycles 20 --port COM26 --baud 921600 --volume 20
+python .\scripts\noise_aware_reboot_pressure.py --cycles 999999 --end-at 2026-06-27T08:00:00 --no-final-timeout --port COM26 --baud 921600 --volume 20
+```
+
+判定要点：
+
+1. 每轮从串口发送 `reboot` 开始，等待 `Application Ready!!!` 或后续 wakeup 日志。
+2. Initial wake 不做单次判死，按配置重试到 `mode=1` 或达到上限。
+3. 首次窗口中只要任一唤醒或命令有识别，应优先归为非目标异常或疑似环境问题。
+4. 只有窗口内持续到 `mode=0`/`wakeup timeout` 前唤醒和命令都未识别，且超时后恢复正常，才归入目标失败候选。
+
+## 全词表功能覆盖
+
+用途：按去重词表逐条播放 MP3，检查唤醒词、命令词和反集词是否符合预期。
+
+```powershell
+python .\scripts\vocab_function_coverage.py --port COM26 --baud 921600
+python .\scripts\vocab_function_coverage.py --port COM26 --baud 921600 --max-cases 20
+```
+
+默认资源：
+
+- 词表：`assets\词表.txt`。
+- 音频：`assets\MP3`。
+- 输出：`result_vocab_function\YYYYMMDD_HHMMSS`。
+
+## 夜间语音压测
+
+用途：长时间覆盖唤醒稳定性、基础功能、档位/温度/灯光/蓝牙/反集/失败项复测和安全收尾。
+
+```powershell
+python .\scripts\overnight_pressure.py --end-at 2026-06-27T08:00:00 --port COM26 --baud 921600 --volume 20
+```
+
+结束后生成报告：
+
+```powershell
+python .\scripts\summarize_pressure_results.py --run-dir .\result_overnight_pressure\[运行目录]
+```
+
+## 三档门限协议验证
+
+当前协议帧：
+
+- 1 档：`A5 08 02 00 EE 01 00 9E`，期望回包 `A5 08 01 00 EE 01 00 9E`。
+- 2 档：`A5 08 02 00 EE 02 00 9F`，期望回包 `A5 08 01 00 EE 02 00 9F`。
+- 3 档：`A5 08 02 00 EE 03 00 A0`，当前按推算协议长期发送验证；即使算法外显数值与 2 档接近，也不要跳过 3 档协议。
+
+基础切换验证：
+
+```powershell
+python .\scripts\threshold_switch_probe.py --protocol-port COM28 --protocol-baud 9600 --log-port COM26 --log-baud 921600
+```
+
+超时后重唤醒和算法门限验证：
+
+```powershell
+python .\scripts\threshold_timeout_algorithm_probe.py --cycles 3 --protocol-port COM28 --protocol-baud 9600 --log-port COM26 --log-baud 921600
+```
+
+判定要点：
+
+- 协议层必须记录发送帧、回包、回包长度和每档统计。
+- 功能层必须验证每档设置后唤醒和 `打开浴霸`/`关闭浴霸` 识别。
+- 算法层重点观察 `1414`、`1410`、`2121/2122`、`ncmThreshold`、`wakeup_algo_set_threshold` 等字段。
+- 当前经验：1 档可见门限与 2/3 档有差异，2/3 档外显数值可能接近，但 3 档协议仍需发送以验证长稳协议稳定性。
+
+## 组合压测
+
+优先使用批处理入口：
+
+```powershell
+cmd /c run_aopu_combo_pressure.bat
+```
+
+批处理顶部 `MODE_ID` 含义：
+
+- `1`：`voice-only`，纯语音唤醒 + 命令识别。
+- `2`：`reboot-only`，单独重启 + App Ready + 首次唤醒。
+- `3`：`threshold-only`，只发送 1/2/3 档协议和检查回包。
+- `4`：`threshold-voice`，每档门限 + 超时 + 重唤醒 + 命令识别。
+- `5`：`reboot-voice`，重启后语音交互。
+- `6`：`reboot-threshold`，重启后发送三档门限协议。
+- `7`：`reboot-threshold-voice`，重启 + 三档门限 + 每档语音交互。
+- `8`：`mixed`，随机混合执行配置的模式，适合夜间综合稳定性压测。
+
+也可直接执行 Python：
+
+```powershell
+python .\scripts\aopu_combo_pressure.py --mode mixed --cycles 9999 --end-at 2026-06-27T08:00:00 --log-port COM26 --log-baud 921600 --protocol-port COM28 --protocol-baud 9600 --volume 20
+python .\scripts\aopu_combo_pressure.py --mode threshold-voice --cycles 3 --threshold-levels 1,2,3 --volume 20
+```
+
+## 结果交付要求
+
+每次执行后至少汇总：
+
+- 结果目录、运行模式、开始/结束时间、串口、音量、资源路径。
+- 串口原始日志、CSV 明细、summary JSON、plan JSON 或工具日志路径。
+- 总步骤、PASS/FAIL/WARN/BLOCKED 数量和通过率。
+- 唤醒总次数、命令识别总次数、三档协议发送/回包总次数。
+- 是否存在连续不能唤醒、连续不能识别、连续协议无回包、重启未触发、App Ready 超时。
+- 对唯一/少量失败必须复核原始日志，区分设备异常、脚本触发失败、环境/外部依赖问题。
 - 所有结论同步写入 `plan.md`。
+
+## Resources
+
+### scripts/
+
+- `debug_serial_realtime_log.py`：串口日志实时保存格式检查。
+- `noise_aware_reboot_pressure.py`：首唤醒窗口重启压测。
+- `vocab_function_coverage.py`：全词表功能覆盖。
+- `overnight_pressure.py`：夜间语音压测。
+- `summarize_pressure_results.py`：夜间压测 Markdown 汇总。
+- `write_pressure_snapshot.py`：运行中状态快照。
+- `wait_and_summarize_overnight.ps1`：定时等待并自动生成夜间汇总。
+- `threshold_switch_probe.py`：三档门限切换基础验证。
+- `threshold_timeout_algorithm_probe.py`：三档门限超时重唤醒算法验证。
+- `aopu_combo_pressure.py`：语音、重启、门限组合压测主入口。
+- `set_default_render_volume.ps1`：Windows 默认播放音量设置。
+
+### assets/
+
+- `MP3/`：全词表 MP3 测试音频。
+- `词表.txt`：全词表文本。
+
+### config/
+
+- `arcs_config.json`：首唤醒窗口重启压测默认串口、音量、音频和日志配置。

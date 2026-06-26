@@ -1,10 +1,10 @@
 {
   "serial": {
-    "port": "COM28",
+    "port": "COM26",
     "baud": 921600
   },
   "playback": {
-    "volume": 60,
+    "volume": 20,
     "use_default_soundcard_only": true
   },
   "audio": {
@@ -17,7 +17,10 @@
     "max_wake_retries_on_command_miss": 6,
     "wake_retry_gap_seconds": 0.8,
     "timeout_wait_seconds": 35.0,
-    "retry_until_timeout": true
+    "retry_until_timeout": true,
+    "initial_wake_max_attempts": 20,
+    "initial_wake_timeout_seconds": 8.0,
+    "post_app_ready_grace_seconds": 3.0
   },
   "logging": {
     "out_dir": "result",

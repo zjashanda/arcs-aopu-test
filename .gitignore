@@ -4,6 +4,8 @@ __pycache__/
 .venv/
 venv/
 result/
+result_*/
+errorlog/
 .publish/
 normalized/
 *.clean.log

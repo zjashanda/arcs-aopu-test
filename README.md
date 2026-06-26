@@ -1,59 +1,548 @@
-# arcs-firstwakeasr
+# arcs-aopu-test
 
-???????????????????? `reboot` ???????????????????????????????????????????????????????
+"奥普/ARCS 离线语音验证与压测技能。Use when Codex or a tester needs to run local serial-log based wakeup/ASR validation, reboot first-wakeup stress tests, full-vocabulary MP3 coverage, overnight pressure tests, threshold protocol switching, threshold-timeout algorithm checks, or mixed voice/reboot/threshold pressure tests with bundled test audio resources."
 
-## ???????
+## Skill layout
 
-1. ?? Python 3.10+?
-2. ?? Python ???
+- `.gitignore`
+- `agents/openai.yaml`
+- `assets/MP3/上一首.mp3`
+- `assets/MP3/下一个模式.mp3`
+- `assets/MP3/下一首.mp3`
+- `assets/MP3/下个模式.mp3`
+- `assets/MP3/亮度调到百分之一百.mp3`
+- `assets/MP3/亮度调到百分之七十.mp3`
+- `assets/MP3/亮度调到百分之三十.mp3`
+- `assets/MP3/亮度调到百分之九十.mp3`
+- `assets/MP3/亮度调到百分之二十.mp3`
+- `assets/MP3/亮度调到百分之五十.mp3`
+- `assets/MP3/亮度调到百分之八十.mp3`
+- `assets/MP3/亮度调到百分之六十.mp3`
+- `assets/MP3/亮度调到百分之十.mp3`
+- `assets/MP3/亮度调到百分之四十.mp3`
+- `assets/MP3/今天有点冷，调下浴霸.mp3`
+- `assets/MP3/你好小奥.mp3`
+- `assets/MP3/停止播放.mp3`
+- `assets/MP3/关凉干燥.mp3`
+- `assets/MP3/关单区取暖.mp3`
+- `assets/MP3/关双区取暖.mp3`
+- `assets/MP3/关巡航换气.mp3`
+- `assets/MP3/关干区取暖.mp3`
+- `assets/MP3/关干燥.mp3`
+- `assets/MP3/关律动灯.mp3`
+- `assets/MP3/关律动炫彩.mp3`
+- `assets/MP3/关恒温暖.mp3`
+- `assets/MP3/关换气.mp3`
+- `assets/MP3/关掉小夜灯.mp3`
+- `assets/MP3/关掉浴霸.mp3`
+- `assets/MP3/关氛围灯.mp3`
+- `assets/MP3/关浴霸.mp3`
+- `assets/MP3/关湿区取暖.mp3`
+- `assets/MP3/关灯.mp3`
+- `assets/MP3/关炫彩灯.mp3`
+- `assets/MP3/关热干燥.mp3`
+- `assets/MP3/关蓝牙.mp3`
+- `assets/MP3/关闭AI恒温暖.mp3`
+- `assets/MP3/关闭AI暖.mp3`
+- `assets/MP3/关闭NBSS.mp3`
+- `assets/MP3/关闭亮肤光.mp3`
+- `assets/MP3/关闭亮肤模式.mp3`
+- `assets/MP3/关闭低噪换气.mp3`
+- `assets/MP3/关闭修护光.mp3`
+- `assets/MP3/关闭修护模式.mp3`
+- `assets/MP3/关闭凉干燥.mp3`
+- `assets/MP3/关闭化妆模式.mp3`
+- `assets/MP3/关闭单区AI暖.mp3`
+- `assets/MP3/关闭单区取暖.mp3`
+- `assets/MP3/关闭双区AI暖.mp3`
+- `assets/MP3/关闭双区取暖.mp3`
+- `assets/MP3/关闭取暖.mp3`
+- `assets/MP3/关闭吹风.mp3`
+- `assets/MP3/关闭外接灯光.mp3`
+- `assets/MP3/关闭外接照明.mp3`
+- `assets/MP3/关闭夜灯模式.mp3`
+- `assets/MP3/关闭嫩肤光.mp3`
+- `assets/MP3/关闭小夜灯.mp3`
+- `assets/MP3/关闭巡航NBSS.mp3`
+- `assets/MP3/关闭巡航取暖.mp3`
+- `assets/MP3/关闭巡航换气.mp3`
+- `assets/MP3/关闭巡航除臭除菌.mp3`
+- `assets/MP3/关闭干区AI暖.mp3`
+- `assets/MP3/关闭干区取暖.mp3`
+- `assets/MP3/关闭干区吹风.mp3`
+- `assets/MP3/关闭干区暖风.mp3`
+- `assets/MP3/关闭干区风暖.mp3`
+- `assets/MP3/关闭干燥.mp3`
+- `assets/MP3/关闭律动灯.mp3`
+- `assets/MP3/关闭律动炫彩.mp3`
+- `assets/MP3/关闭快速换气.mp3`
+- `assets/MP3/关闭恒温干燥.mp3`
+- `assets/MP3/关闭恒温暖.mp3`
+- `assets/MP3/关闭抗衰光.mp3`
+- `assets/MP3/关闭抗衰模式.mp3`
+- `assets/MP3/关闭换气.mp3`
+- `assets/MP3/关闭摆叶.mp3`
+- `assets/MP3/关闭普通干燥.mp3`
+- `assets/MP3/关闭智慧灯光.mp3`
+- `assets/MP3/关闭暖风.mp3`
+- `assets/MP3/关闭杀菌.mp3`
+- `assets/MP3/关闭橙光.mp3`
+- `assets/MP3/关闭氛围灯.mp3`
+- `assets/MP3/关闭浴室灯光.mp3`
+- `assets/MP3/关闭浴霸.mp3`
+- `assets/MP3/关闭浴霸照明.mp3`
+- `assets/MP3/关闭淋浴模式.mp3`
+- `assets/MP3/关闭湿区AI暖.mp3`
+- `assets/MP3/关闭湿区取暖.mp3`
+- `assets/MP3/关闭湿区吹风.mp3`
+- `assets/MP3/关闭湿区暖风.mp3`
+- `assets/MP3/关闭湿区风暖.mp3`
+- `assets/MP3/关闭湿取暖.mp3`
+- `assets/MP3/关闭灯光.mp3`
+- `assets/MP3/关闭炫彩灯.mp3`
+- `assets/MP3/关闭热干燥.mp3`
+- `assets/MP3/关闭照明.mp3`
+- `assets/MP3/关闭空气管家.mp3`
+- `assets/MP3/关闭红光.mp3`
+- `assets/MP3/关闭绿光.mp3`
+- `assets/MP3/关闭美容光.mp3`
+- `assets/MP3/关闭自动换气.mp3`
+- `assets/MP3/关闭自然风.mp3`
+- `assets/MP3/关闭舒敏光.mp3`
+- `assets/MP3/关闭舒敏模式.mp3`
+- `assets/MP3/关闭舒缓光.mp3`
+- `assets/MP3/关闭蓝牙.mp3`
+- `assets/MP3/关闭除异味.mp3`
+- `assets/MP3/关闭除臭.mp3`
+- `assets/MP3/关闭除臭除菌.mp3`
+- `assets/MP3/关闭除菌.mp3`
+- `assets/MP3/关闭除菌除臭.mp3`
+- `assets/MP3/关闭风向.mp3`
+- `assets/MP3/关闭风暖.mp3`
+- `assets/MP3/关闭黄光.mp3`
+- `assets/MP3/再见.mp3`
+- `assets/MP3/减小音量.mp3`
+- `assets/MP3/半小时以后关闭取暖.mp3`
+- `assets/MP3/吹风调到一档.mp3`
+- `assets/MP3/吹风调到三档.mp3`
+- `assets/MP3/吹风调到二档.mp3`
+- `assets/MP3/吹风调到五档.mp3`
+- `assets/MP3/吹风调到四档.mp3`
+- `assets/MP3/增大音量.mp3`
+- `assets/MP3/声音大点.mp3`
+- `assets/MP3/声音小点.mp3`
+- `assets/MP3/天猫精灵.mp3`
+- `assets/MP3/定时三十分钟.mp3`
+- `assets/MP3/定时二十分钟.mp3`
+- `assets/MP3/定时十分钟.mp3`
+- `assets/MP3/定时四十分钟.mp3`
+- `assets/MP3/小T小T.mp3`
+- `assets/MP3/小V小V.mp3`
+- `assets/MP3/小优小优.mp3`
+- `assets/MP3/小冰小冰.mp3`
+- `assets/MP3/小奥同学.mp3`
+- `assets/MP3/小布小布.mp3`
+- `assets/MP3/小度小度.mp3`
+- `assets/MP3/小德小德.mp3`
+- `assets/MP3/小欧小欧.mp3`
+- `assets/MP3/小爱同学.mp3`
+- `assets/MP3/小维小维.mp3`
+- `assets/MP3/小美小美.mp3`
+- `assets/MP3/小聚小聚.mp3`
+- `assets/MP3/小艺小艺.mp3`
+- `assets/MP3/开启凉干燥.mp3`
+- `assets/MP3/开启单区取暖.mp3`
+- `assets/MP3/开启双区取暖.mp3`
+- `assets/MP3/开启小夜灯.mp3`
+- `assets/MP3/开启干区取暖.mp3`
+- `assets/MP3/开启律动灯.mp3`
+- `assets/MP3/开启律动炫彩.mp3`
+- `assets/MP3/开启氛围灯.mp3`
+- `assets/MP3/开启浴霸.mp3`
+- `assets/MP3/开启湿区取暖.mp3`
+- `assets/MP3/开启炫彩灯.mp3`
+- `assets/MP3/开启热干燥.mp3`
+- `assets/MP3/开启蓝牙.mp3`
+- `assets/MP3/开巡航换气.mp3`
+- `assets/MP3/开干区取暖.mp3`
+- `assets/MP3/开干燥.mp3`
+- `assets/MP3/开律动灯.mp3`
+- `assets/MP3/开律动炫彩.mp3`
+- `assets/MP3/开恒温暖.mp3`
+- `assets/MP3/开换气.mp3`
+- `assets/MP3/开氛围灯.mp3`
+- `assets/MP3/开浴霸.mp3`
+- `assets/MP3/开灯.mp3`
+- `assets/MP3/开炫彩灯.mp3`
+- `assets/MP3/开蓝牙.mp3`
+- `assets/MP3/当雷达感应到人时，打开照明.mp3`
+- `assets/MP3/我要洗澡了，劲爆一点.mp3`
+- `assets/MP3/打开AI恒温暖.mp3`
+- `assets/MP3/打开AI暖.mp3`
+- `assets/MP3/打开NBSS.mp3`
+- `assets/MP3/打开亮肤光.mp3`
+- `assets/MP3/打开亮肤模式.mp3`
+- `assets/MP3/打开低噪换气.mp3`
+- `assets/MP3/打开修护光.mp3`
+- `assets/MP3/打开修护模式.mp3`
+- `assets/MP3/打开凉干燥.mp3`
+- `assets/MP3/打开化妆模式.mp3`
+- `assets/MP3/打开单区AI暖.mp3`
+- `assets/MP3/打开单区取暖.mp3`
+- `assets/MP3/打开双区AI暖.mp3`
+- `assets/MP3/打开双区取暖.mp3`
+- `assets/MP3/打开取暖.mp3`
+- `assets/MP3/打开吹风.mp3`
+- `assets/MP3/打开外接灯光.mp3`
+- `assets/MP3/打开外接照明.mp3`
+- `assets/MP3/打开夜灯模式.mp3`
+- `assets/MP3/打开嫩肤光.mp3`
+- `assets/MP3/打开小夜灯.mp3`
+- `assets/MP3/打开巡航NBSS.mp3`
+- `assets/MP3/打开巡航取暖.mp3`
+- `assets/MP3/打开巡航换气.mp3`
+- `assets/MP3/打开巡航除臭除菌.mp3`
+- `assets/MP3/打开干区AI暖.mp3`
+- `assets/MP3/打开干区取暖.mp3`
+- `assets/MP3/打开干区吹风.mp3`
+- `assets/MP3/打开干区暖风.mp3`
+- `assets/MP3/打开干区风暖.mp3`
+- `assets/MP3/打开干燥.mp3`
+- `assets/MP3/打开律动灯.mp3`
+- `assets/MP3/打开律动炫彩.mp3`
+- `assets/MP3/打开快速换气.mp3`
+- `assets/MP3/打开恒温干燥.mp3`
+- `assets/MP3/打开恒温暖.mp3`
+- `assets/MP3/打开抗衰光.mp3`
+- `assets/MP3/打开抗衰模式.mp3`
+- `assets/MP3/打开换气.mp3`
+- `assets/MP3/打开摆叶.mp3`
+- `assets/MP3/打开普通干燥.mp3`
+- `assets/MP3/打开智慧灯光.mp3`
+- `assets/MP3/打开暖风.mp3`
+- `assets/MP3/打开杀菌.mp3`
+- `assets/MP3/打开橙光.mp3`
+- `assets/MP3/打开氛围灯.mp3`
+- `assets/MP3/打开浴室灯光.mp3`
+- `assets/MP3/打开浴霸.mp3`
+- `assets/MP3/打开浴霸照明.mp3`
+- `assets/MP3/打开浴霸，风速二档.mp3`
+- `assets/MP3/打开淋浴模式.mp3`
+- `assets/MP3/打开湿区AI暖.mp3`
+- `assets/MP3/打开湿区取暖.mp3`
+- `assets/MP3/打开湿区吹风.mp3`
+- `assets/MP3/打开湿区暖风.mp3`
+- `assets/MP3/打开湿区风暖.mp3`
+- `assets/MP3/打开灯光.mp3`
+- `assets/MP3/打开炫彩灯.mp3`
+- `assets/MP3/打开热干燥.mp3`
+- `assets/MP3/打开照明.mp3`
+- `assets/MP3/打开空气管家.mp3`
+- `assets/MP3/打开红光.mp3`
+- `assets/MP3/打开绿光.mp3`
+- `assets/MP3/打开美容光.mp3`
+- `assets/MP3/打开自动换气.mp3`
+- `assets/MP3/打开自然风.mp3`
+- `assets/MP3/打开舒敏光.mp3`
+- `assets/MP3/打开舒敏模式.mp3`
+- `assets/MP3/打开舒缓光.mp3`
+- `assets/MP3/打开蓝牙.mp3`
+- `assets/MP3/打开除异味.mp3`
+- `assets/MP3/打开除臭.mp3`
+- `assets/MP3/打开除臭除菌.mp3`
+- `assets/MP3/打开除菌.mp3`
+- `assets/MP3/打开除菌除臭.mp3`
+- `assets/MP3/打开风向.mp3`
+- `assets/MP3/打开风暖.mp3`
+- `assets/MP3/打开黄光.mp3`
+- `assets/MP3/换一个模式.mp3`
+- `assets/MP3/换个模式.mp3`
+- `assets/MP3/换个歌曲.mp3`
+- `assets/MP3/换个音乐.mp3`
+- `assets/MP3/换气调到一档.mp3`
+- `assets/MP3/换气调到三档.mp3`
+- `assets/MP3/换气调到二档.mp3`
+- `assets/MP3/换气调到五档.mp3`
+- `assets/MP3/换气调到四档.mp3`
+- `assets/MP3/播放下一首.mp3`
+- `assets/MP3/断开蓝牙.mp3`
+- `assets/MP3/明早8点打开换气.mp3`
+- `assets/MP3/暂停.mp3`
+- `assets/MP3/暂停摆叶.mp3`
+- `assets/MP3/暂停播放.mp3`
+- `assets/MP3/暂停风向.mp3`
+- `assets/MP3/温度调低一点.mp3`
+- `assets/MP3/温度调到三十一度.mp3`
+- `assets/MP3/温度调到三十七度.mp3`
+- `assets/MP3/温度调到三十三度.mp3`
+- `assets/MP3/温度调到三十九度.mp3`
+- `assets/MP3/温度调到三十二度.mp3`
+- `assets/MP3/温度调到三十五度.mp3`
+- `assets/MP3/温度调到三十八度.mp3`
+- `assets/MP3/温度调到三十六度.mp3`
+- `assets/MP3/温度调到三十四度.mp3`
+- `assets/MP3/温度调到三十度.mp3`
+- `assets/MP3/温度调到四十一度.mp3`
+- `assets/MP3/温度调到四十二度.mp3`
+- `assets/MP3/温度调到四十度.mp3`
+- `assets/MP3/温度调高一点.mp3`
+- `assets/MP3/滴1声.mp3`
+- `assets/MP3/滴2声.mp3`
+- `assets/MP3/蓝牙断开.mp3`
+- `assets/MP3/蓝牙连接.mp3`
+- `assets/MP3/调低亮度.mp3`
+- `assets/MP3/调低温度.mp3`
+- `assets/MP3/调低音量.mp3`
+- `assets/MP3/调大换气.mp3`
+- `assets/MP3/调大风速.mp3`
+- `assets/MP3/调小换气.mp3`
+- `assets/MP3/调小风速.mp3`
+- `assets/MP3/调高亮度.mp3`
+- `assets/MP3/调高换气.mp3`
+- `assets/MP3/调高温度.mp3`
+- `assets/MP3/调高音量.mp3`
+- `assets/MP3/调高风速.mp3`
+- `assets/MP3/退出.mp3`
+- `assets/MP3/重新对码.mp3`
+- `assets/MP3/降低换气.mp3`
+- `assets/MP3/降低音量.mp3`
+- `assets/MP3/降低风速.mp3`
+- `assets/MP3/雷达灵敏度调到低档.mp3`
+- `assets/MP3/音乐暂停.mp3`
+- `assets/MP3/风速调到一档.mp3`
+- `assets/MP3/风速调到三档.mp3`
+- `assets/MP3/风速调到二档.mp3`
+- `assets/MP3/风速调到五档.mp3`
+- `assets/MP3/风速调到四档.mp3`
+- `assets/词表.txt`
+- `config/arcs_config.json`
+- `requirements.txt`
+- `run_aopu_combo_pressure.bat`
+- `scripts/aopu_combo_pressure.py`
+- `scripts/debug_serial_realtime_log.py`
+- `scripts/noise_aware_reboot_pressure.py`
+- `scripts/overnight_pressure.py`
+- `scripts/set_default_render_volume.ps1`
+- `scripts/summarize_pressure_results.py`
+- `scripts/threshold_switch_probe.py`
+- `scripts/threshold_timeout_algorithm_probe.py`
+- `scripts/vocab_function_coverage.py`
+- `scripts/wait_and_summarize_overnight.ps1`
+- `scripts/write_pressure_snapshot.py`
+- `SKILL.md`
+- `wav/你好小奥.wav`
+- `wav/关闭浴霸.wav`
+- `wav/打开浴霸.wav`
 
-```powershell
-python -m pip install -r requirements.txt
+## Install the skill
+
+Copy this folder into:
+
+```text
+~/.codex/skills/arcs-aopu-test
 ```
 
-3. ?? `ffmpeg` ??? `PATH`????????? wav ?????
-4. ?? `config/arcs_config.json`????? `serial.port` ? `serial.baud` ??????????? `COM28` ? `921600`?
-5. ?? Windows ????????????????????????????????????? `playback.volume=60`?
-6. ?????????
+Then restart Codex.
+
+## Usage and workflow
+
+## 启动规则
+
+1. 每次开始任务先读取当前目录 `plan.md`；不存在则创建。
+2. 先把本轮要做什么、已做什么、未做什么写入 `plan.md`。
+3. 执行过程中出现关键结果、阻塞、失败、未复现结论，都要及时追加到 `plan.md`。
+4. 不要删除已有有效信息；只追加或整理明确过时/乱码内容。
+5. 本技能目录就是当前目录，优先在本目录内运行脚本，不要把技能复制到其他目录后再改路径。
+
+## 能力范围
+
+本 skill 已集成当前奥普项目可用的验证和压测逻辑：
+
+- 首唤醒窗口重启压测：重启设备、等待 `Application Ready!!!`、验证首次唤醒进入 `mode=1`、首次识别窗口内再次唤醒和命令识别、超时后恢复。
+- 全词表功能覆盖：按 `assets\词表.txt` 播放 `assets\MP3` 中的全量音频，覆盖唤醒词、命令词和反集词，并输出 CSV/JSON。
+- 夜间语音压测：按模块化用例长时间循环播放，覆盖核心功能、失败项复测、反集误唤醒和安全收尾。
+- 协议门限切换验证：通过 `COM28@9600` 发送 1/2/3 档门限协议，并用 `COM26@921600` 复核唤醒和命令识别。
+- 三档门限超时重唤醒算法验证：每档设置后等待超时，再重新唤醒、命令识别，并提取算法门限字段。
+- 组合压测：支持语音交互、重启唤醒、三档门限的单项、两两组合、三项组合和 mixed 随机混合长稳压测。
+- 结果汇总：支持夜间压测报告、运行快照、串口日志和 CSV/JSON 证据输出。
+
+## 资源结构
+
+- `assets\MP3`：奥普全词表 MP3 测试资源，当前 308 个 `.mp3`，用于全词表、夜间压测、门限验证和组合压测。
+- `assets\词表.txt`：与 MP3 对应的去重词表，当前 308 条。
+- `wav`：首唤醒窗口重启压测使用的基础 WAV 资源：`你好小奥.wav`、`打开浴霸.wav`、`关闭浴霸.wav`。
+- `config\arcs_config.json`：首唤醒窗口重启压测和串口日志调试的默认配置。
+- `scripts`：所有可执行脚本。脚本默认优先使用本 skill 内置资源路径。
+- `run_aopu_combo_pressure.bat`：组合压测批处理入口，只需改顶部参数即可运行。
+
+## 环境准备
+
+1. 安装 Python 3.10+，确认 `python` 可在 PowerShell/cmd 中执行。
+2. 安装依赖：`python -m pip install -r requirements.txt`。
+3. 首唤醒窗口重启压测如果使用 WAV 归一化，安装 `ffmpeg` 并加入 `PATH`；若 ffmpeg 不可用，脚本会尝试 WAV fallback。
+4. Windows 默认声卡需要可外放；奥普当前压测默认音量为 20，可通过参数修改。
+5. 默认日志串口为 `COM26@921600`；默认协议串口为 `COM28@9600`。如设备枚举变化，优先通过参数或批处理顶部变量修改。
+
+## 固定日志和识别标记
+
+- 空闲：`I/wakeup_algo counter_avg=...`、`ListenAI:/$`。
+- 应用就绪：`Application Ready!!!`。
+- 进入识别模式：`wakeup switch mode to: 1`、`MODE=1`、`wakeup_algo_switch_mode_cb: mode=1`。
+- 唤醒成功：`WAKE(1): ... KEY=2(ni3 hao3 xiao3 ao4)` 或 JSON 中 `keyword":"ni3 hao3 xiao3 ao4`。
+- 打开浴霸成功：`Recognized offline command: kai yu ba` 或 `Offline command submitted: kai yu ba`。
+- 关闭浴霸成功：`Recognized offline command: guan yu ba` 或 `Offline command submitted: guan yu ba`。
+- 超时退出：`wakeup switch mode to: 0`、`wakeup timeout`、`wakeup_algo_timeout_cb`、`MODE=0`。
+
+日志要求：
+
+- 串口日志必须实时保存，不能只保存匹配到的关键行。
+- 工具执行日志、CSV、JSON、报告都要保留在结果目录，便于复盘。
+- 如果任务被中断，已经采集到的串口日志和工具日志必须仍可作为证据。
+- 结论必须区分 `PASS`、`WARN`、`SUSPECT`、`FAIL`、`BLOCKED`，不要把脚本未进入有效流程直接当作产品失败。
+
+## 快速检查
+
+在 skill 根目录执行：
 
 ```powershell
 python .\scripts\debug_serial_realtime_log.py --lines 10
+python .\scripts\vocab_function_coverage.py --max-cases 3 --port COM26 --baud 921600
+cmd /c "set AOPU_DRY_RUN=1&& call run_aopu_combo_pressure.bat <nul"
 ```
 
-7. ?? 5 ????????
+## 首唤醒窗口重启压测
+
+用途：验证 reboot 后首次唤醒窗口内是否能再次唤醒和识别 `打开浴霸`、`关闭浴霸`，并复核超时后恢复。
+
+推荐命令：
 
 ```powershell
-python .\scripts
-oise_aware_reboot_pressure.py --cycles 5
+python .\scripts\noise_aware_reboot_pressure.py --cycles 20 --port COM26 --baud 921600 --volume 20
+python .\scripts\noise_aware_reboot_pressure.py --cycles 999999 --end-at 2026-06-27T08:00:00 --no-final-timeout --port COM26 --baud 921600 --volume 20
 ```
 
-8. ??????????????
+判定要点：
+
+1. 每轮从串口发送 `reboot` 开始，等待 `Application Ready!!!` 或后续 wakeup 日志。
+2. Initial wake 不做单次判死，按配置重试到 `mode=1` 或达到上限。
+3. 首次窗口中只要任一唤醒或命令有识别，应优先归为非目标异常或疑似环境问题。
+4. 只有窗口内持续到 `mode=0`/`wakeup timeout` 前唤醒和命令都未识别，且超时后恢复正常，才归入目标失败候选。
+
+## 全词表功能覆盖
+
+用途：按去重词表逐条播放 MP3，检查唤醒词、命令词和反集词是否符合预期。
 
 ```powershell
-python .\scripts
-oise_aware_reboot_pressure.py --cycles 999999 --end-at 2026-06-10T08:30:00 --no-final-timeout
+python .\scripts\vocab_function_coverage.py --port COM26 --baud 921600
+python .\scripts\vocab_function_coverage.py --port COM26 --baud 921600 --max-cases 20
 ```
 
-## ????
+默认资源：
 
-??????? `reboot` ????????????????? `????`??????? `mode=1` ?????????????? `????`?`????`?`????`?
+- 词表：`assets\词表.txt`。
+- 音频：`assets\MP3`。
+- 输出：`result_vocab_function\YYYYMMDD_HHMMSS`。
 
-???????????????????? `mode=0` / `wakeup timeout` ??`wake_detected_count=0` ? `command_recognized_count=0`??????????????????????? `fail_first_window_no_wake_no_command_until_timeout_recovered`???????????????????????????? PASS ? SUSPECT ???
+## 夜间语音压测
 
-## ????
+用途：长时间覆盖唤醒稳定性、基础功能、档位/温度/灯光/蓝牙/反集/失败项复测和安全收尾。
 
-??????? `result/YYYYMMDD_HHMMSS/`??????
+```powershell
+python .\scripts\overnight_pressure.py --end-at 2026-06-27T08:00:00 --port COM26 --baud 921600 --volume 20
+```
 
-- `COMxxx_baud_yyyy-MM-dd_HH_mm_ss.log`?Xshell ???????UTF-8 BOM?CRLF????????
-- `*.tool.log`????????????????????
-- `*.summary.json`?????????
-- `*.clean.log`??? ANSI ????????????
+结束后生成报告：
 
-## ????
+```powershell
+python .\scripts\summarize_pressure_results.py --run-dir .\result_overnight_pressure\[运行目录]
+```
 
-- `SKILL.md`?Codex skill ?????
-- `config/arcs_config.json`?????????????????????????????
-- `scripts/noise_aware_reboot_pressure.py`??? reboot ??????????
-- `scripts/debug_serial_realtime_log.py`??????????????
-- `wav/`?????????????
-- `requirements.txt`?Python ???
+## 三档门限协议验证
+
+当前协议帧：
+
+- 1 档：`A5 08 02 00 EE 01 00 9E`，期望回包 `A5 08 01 00 EE 01 00 9E`。
+- 2 档：`A5 08 02 00 EE 02 00 9F`，期望回包 `A5 08 01 00 EE 02 00 9F`。
+- 3 档：`A5 08 02 00 EE 03 00 A0`，当前按推算协议长期发送验证；即使算法外显数值与 2 档接近，也不要跳过 3 档协议。
+
+基础切换验证：
+
+```powershell
+python .\scripts\threshold_switch_probe.py --protocol-port COM28 --protocol-baud 9600 --log-port COM26 --log-baud 921600
+```
+
+超时后重唤醒和算法门限验证：
+
+```powershell
+python .\scripts\threshold_timeout_algorithm_probe.py --cycles 3 --protocol-port COM28 --protocol-baud 9600 --log-port COM26 --log-baud 921600
+```
+
+判定要点：
+
+- 协议层必须记录发送帧、回包、回包长度和每档统计。
+- 功能层必须验证每档设置后唤醒和 `打开浴霸`/`关闭浴霸` 识别。
+- 算法层重点观察 `1414`、`1410`、`2121/2122`、`ncmThreshold`、`wakeup_algo_set_threshold` 等字段。
+- 当前经验：1 档可见门限与 2/3 档有差异，2/3 档外显数值可能接近，但 3 档协议仍需发送以验证长稳协议稳定性。
+
+## 组合压测
+
+优先使用批处理入口：
+
+```powershell
+cmd /c run_aopu_combo_pressure.bat
+```
+
+批处理顶部 `MODE_ID` 含义：
+
+- `1`：`voice-only`，纯语音唤醒 + 命令识别。
+- `2`：`reboot-only`，单独重启 + App Ready + 首次唤醒。
+- `3`：`threshold-only`，只发送 1/2/3 档协议和检查回包。
+- `4`：`threshold-voice`，每档门限 + 超时 + 重唤醒 + 命令识别。
+- `5`：`reboot-voice`，重启后语音交互。
+- `6`：`reboot-threshold`，重启后发送三档门限协议。
+- `7`：`reboot-threshold-voice`，重启 + 三档门限 + 每档语音交互。
+- `8`：`mixed`，随机混合执行配置的模式，适合夜间综合稳定性压测。
+
+也可直接执行 Python：
+
+```powershell
+python .\scripts\aopu_combo_pressure.py --mode mixed --cycles 9999 --end-at 2026-06-27T08:00:00 --log-port COM26 --log-baud 921600 --protocol-port COM28 --protocol-baud 9600 --volume 20
+python .\scripts\aopu_combo_pressure.py --mode threshold-voice --cycles 3 --threshold-levels 1,2,3 --volume 20
+```
+
+## 结果交付要求
+
+每次执行后至少汇总：
+
+- 结果目录、运行模式、开始/结束时间、串口、音量、资源路径。
+- 串口原始日志、CSV 明细、summary JSON、plan JSON 或工具日志路径。
+- 总步骤、PASS/FAIL/WARN/BLOCKED 数量和通过率。
+- 唤醒总次数、命令识别总次数、三档协议发送/回包总次数。
+- 是否存在连续不能唤醒、连续不能识别、连续协议无回包、重启未触发、App Ready 超时。
+- 对唯一/少量失败必须复核原始日志，区分设备异常、脚本触发失败、环境/外部依赖问题。
+- 所有结论同步写入 `plan.md`。
+
+## Resources
+
+### scripts/
+
+- `debug_serial_realtime_log.py`：串口日志实时保存格式检查。
+- `noise_aware_reboot_pressure.py`：首唤醒窗口重启压测。
+- `vocab_function_coverage.py`：全词表功能覆盖。
+- `overnight_pressure.py`：夜间语音压测。
+- `summarize_pressure_results.py`：夜间压测 Markdown 汇总。
+- `write_pressure_snapshot.py`：运行中状态快照。
+- `wait_and_summarize_overnight.ps1`：定时等待并自动生成夜间汇总。
+- `threshold_switch_probe.py`：三档门限切换基础验证。
+- `threshold_timeout_algorithm_probe.py`：三档门限超时重唤醒算法验证。
+- `aopu_combo_pressure.py`：语音、重启、门限组合压测主入口。
+- `set_default_render_volume.ps1`：Windows 默认播放音量设置。
+
+### assets/
+
+- `MP3/`：全词表 MP3 测试音频。
+- `词表.txt`：全词表文本。
+
+### config/
+
+- `arcs_config.json`：首唤醒窗口重启压测默认串口、音量、音频和日志配置。
