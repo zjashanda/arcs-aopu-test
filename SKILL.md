@@ -29,6 +29,7 @@ description: "奥普/ARCS 离线语音验证与压测技能。Use when Codex or 
 
 - `assets\MP3`：奥普全词表 MP3 测试资源，当前 308 个 `.mp3`，用于全词表、夜间压测、门限验证和组合压测。
 - `assets\词表.txt`：与 MP3 对应的去重词表，当前 308 条。
+- 音频为静态语料：不重生成、不重编码；需要补录时用 `scripts/regen_audio.py` 输出到 `result/audio_regen/<日期>/`，说明见 `README.md` 的“音频来源与重生成”。
 - `config\arcs_config.json`：首唤醒窗口重启压测和串口日志调试的默认配置。
 - `scripts`：所有可执行脚本。脚本默认优先使用本 skill 内置资源路径。
 - `run_aopu_combo_pressure.bat`：组合压测批处理入口，只需改顶部参数即可运行。
