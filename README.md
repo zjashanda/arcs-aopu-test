@@ -1,10 +1,11 @@
 # arcs-aopu-test
 
-"奥普/ARCS 离线语音验证与压测技能。Use when Codex or a tester needs to run local serial-log based wakeup/ASR validation, reboot first-wakeup stress tests, full-vocabulary MP3 coverage, overnight pressure tests, threshold protocol switching, threshold-timeout algorithm checks, or mixed voice/reboot/threshold pressure tests with bundled test audio resources."
+奥普/ARCS 离线语音验证与压测技能。Use when Codex or a tester needs to run local serial-log based wakeup/ASR validation, reboot first-wakeup stress tests, full-vocabulary MP3 coverage, overnight pressure tests, threshold protocol switching, threshold-timeout algorithm checks, or mixed voice/reboot/threshold pressure tests with bundled test audio resources.
 
 ## Skill layout
 
 - `.gitignore`
+- `SKILL.md`
 - `agents/openai.yaml`
 - `assets/MP3/上一首.mp3`
 - `assets/MP3/下一个模式.mp3`
@@ -322,6 +323,7 @@
 - `scripts/debug_serial_realtime_log.py`
 - `scripts/noise_aware_reboot_pressure.py`
 - `scripts/overnight_pressure.py`
+- `scripts/regen_audio.py`
 - `scripts/set_default_render_volume.ps1`
 - `scripts/summarize_pressure_results.py`
 - `scripts/threshold_switch_probe.py`
@@ -329,7 +331,8 @@
 - `scripts/vocab_function_coverage.py`
 - `scripts/wait_and_summarize_overnight.ps1`
 - `scripts/write_pressure_snapshot.py`
-- `SKILL.md`
+- `tests/stub/lstts_core/__init__.py`
+- `tests/test_regen_audio.py`
 
 ## Install the skill
 
@@ -337,9 +340,10 @@ Copy this folder into:
 
 ```text
 ~/.codex/skills/arcs-aopu-test
+~/.config/opencode/skills/arcs-aopu-test
 ```
 
-Then restart Codex.
+Then restart Codex or OpenCode.
 
 ## Usage and workflow
 
@@ -350,6 +354,16 @@ Then restart Codex.
 3. 执行过程中出现关键结果、阻塞、失败、未复现结论，都要及时追加到 `plan.md`。
 4. 不要删除已有有效信息；只追加或整理明确过时/乱码内容。
 5. 本技能目录就是当前目录，优先在本目录内运行脚本，不要把技能复制到其他目录后再改路径。
+
+## 适用设备
+
+| 项 | 本 skill 的适用值 | 说明 |
+|---|---|---|
+| 项目 | 奥普/ARCS 离线语音（`ARCS-aopu`） | 只服务奥普 ARCS 项目 |
+| 日志串口 | `COM26@921600` | 唤醒/识别判定与重启窗口都依赖这一路日志 |
+| 协议/门限串口 | `COM28@9600` | 只用于 1/2/3 档门限协议下发与超时算法验证 |
+| 语料 | `assets/MP3` 308 个 MP3 + `assets/词表.txt` 308 条 | 含唤醒词、命令词与反集词；只对奥普项目有效 |
+| 不适用 | 非奥普 ARCS 设备、没有独立协议串口的设备 | TCL 空调用 `tcl-test-sub`，通用真机 BDD 用 `Polaris`，烧录用 `cskflashtest` |
 
 ## 能力范围
 
@@ -367,6 +381,7 @@ Then restart Codex.
 
 - `assets\MP3`：奥普全词表 MP3 测试资源，当前 308 个 `.mp3`，用于全词表、夜间压测、门限验证和组合压测。
 - `assets\词表.txt`：与 MP3 对应的去重词表，当前 308 条。
+- 音频为静态语料：不重生成、不重编码；需要补录时用 `scripts/regen_audio.py` 输出到 `result/audio_regen/<日期>/`，说明见 `README.md` 的“音频来源与重生成”。
 - `config\arcs_config.json`：首唤醒窗口重启压测和串口日志调试的默认配置。
 - `scripts`：所有可执行脚本。脚本默认优先使用本 skill 内置资源路径。
 - `run_aopu_combo_pressure.bat`：组合压测批处理入口，只需改顶部参数即可运行。
@@ -374,7 +389,7 @@ Then restart Codex.
 ## 音频来源与重生成
 
 - `assets/MP3`：308 个奥普全词表 MP3，与 `assets/词表.txt`（308 行）逐条对应；文件名即播放文本。
-- 原工程未保留这批音频的 TTS 供应商、模型、音色和合成参数，本仓库目前也没有音频 manifest；不补造不可验证的信息，需要哈希与格式时用重生成脚本产出的 manifest 对照（补一个静态 manifest 是后续任务，不在本次范围）。
+- 原工程未保留这批音频的 TTS 供应商、模型、音色和合成参数，本仓库也没有音频 manifest；不补造不可验证的信息，需要哈希与格式时用重生成脚本产出的 manifest 对照（补静态 manifest 是后续任务）。
 - 这批音频是**静态语料**：不重生成、不重编码、不改名；新增、替换或删除音频后必须同步 `assets/词表.txt` 与全词表覆盖统计，并重跑全词表验证。
 
 需要补录或用统一音色重做时，用 `scripts/regen_audio.py` 输出到 `result/audio_regen/<日期>/` 再人工比对，不覆盖 `assets/MP3`。
@@ -383,7 +398,6 @@ Then restart Codex.
 
 ```bash
 pip install "lstts-core @ git+https://github.com/zjashanda/lstts.git@main"
-pip install -U --force-reinstall --no-cache-dir "lstts-core @ git+https://github.com/zjashanda/lstts.git@main"
 python -c "import lstts_core; print(lstts_core.__version__)"
 ```
 
