@@ -13,6 +13,16 @@ description: "奥普/ARCS 离线语音验证与压测技能。Use when Codex or 
 4. 不要删除已有有效信息；只追加或整理明确过时/乱码内容。
 5. 本技能目录就是当前目录，优先在本目录内运行脚本，不要把技能复制到其他目录后再改路径。
 
+## 适用设备
+
+| 项 | 本 skill 的适用值 | 说明 |
+|---|---|---|
+| 项目 | 奥普/ARCS 离线语音（`ARCS-aopu`） | 只服务奥普 ARCS 项目 |
+| 日志串口 | `COM26@921600` | 唤醒/识别判定与重启窗口都依赖这一路日志 |
+| 协议/门限串口 | `COM28@9600` | 只用于 1/2/3 档门限协议下发与超时算法验证 |
+| 语料 | `assets/MP3` 308 个 MP3 + `assets/词表.txt` 308 条 | 含唤醒词、命令词与反集词；只对奥普项目有效 |
+| 不适用 | 非奥普 ARCS 设备、没有独立协议串口的设备 | TCL 空调用 `tcl-test-sub`，通用真机 BDD 用 `Polaris`，烧录用 `cskflashtest` |
+
 ## 能力范围
 
 本 skill 已集成当前奥普项目可用的验证和压测逻辑：
@@ -33,6 +43,34 @@ description: "奥普/ARCS 离线语音验证与压测技能。Use when Codex or 
 - `config\arcs_config.json`：首唤醒窗口重启压测和串口日志调试的默认配置。
 - `scripts`：所有可执行脚本。脚本默认优先使用本 skill 内置资源路径。
 - `run_aopu_combo_pressure.bat`：组合压测批处理入口，只需改顶部参数即可运行。
+
+## 音频来源与重生成
+
+- `assets/MP3`：308 个奥普全词表 MP3，与 `assets/词表.txt`（308 行）逐条对应；文件名即播放文本。
+- 原工程未保留这批音频的 TTS 供应商、模型、音色和合成参数，本仓库也没有音频 manifest；不补造不可验证的信息，需要哈希与格式时用重生成脚本产出的 manifest 对照（补静态 manifest 是后续任务）。
+- 这批音频是**静态语料**：不重生成、不重编码、不改名；新增、替换或删除音频后必须同步 `assets/词表.txt` 与全词表覆盖统计，并重跑全词表验证。
+
+需要补录或用统一音色重做时，用 `scripts/regen_audio.py` 输出到 `result/audio_regen/<日期>/` 再人工比对，不覆盖 `assets/MP3`。
+
+安装 / 更新 lstts：
+
+```bash
+pip install "lstts-core @ git+https://github.com/zjashanda/lstts.git@main"
+python -c "import lstts_core; print(lstts_core.__version__)"
+```
+
+```bash
+# 只看计划（不装 lstts、不访问网络）
+python scripts/regen_audio.py plan
+
+# 合成前 5 条到 result/audio_regen/<时间戳>/
+python scripts/regen_audio.py build --limit 5
+```
+
+- 输出目录默认 `result/audio_regen/<时间戳>/`；`--corpus-dir assets/MP3` 命中即拒绝。
+- 每条产物写 `regen_manifest.json` / `.csv`（文本、音色、采样率、时长、响度、体积、SHA-256、状态）。
+- 凭据只用 `LSTTS_TTS_TOKEN`（兼容旧 `LSTEST_TTS_TOKEN`），不写进仓库和日志。
+- 离线自测：`python -m unittest discover -s tests`。
 
 ## 环境准备
 
